@@ -1,4 +1,4 @@
-import { Chunk, CHUNK_WIDTH, CHUNK_DEPTH } from './Chunk';
+import { Chunk, CHUNK_WIDTH, CHUNK_DEPTH } from "./Chunk";
 
 export class World {
   chunks: Map<string, Chunk> = new Map();
@@ -35,16 +35,8 @@ export class World {
   }
 
   worldToChunk(wx: number, wz: number): [number, number] {
-    return [
-      Math.floor(wx / CHUNK_WIDTH),
-      Math.floor(wz / CHUNK_DEPTH),
-    ];
-  }
-
-  localToWorld(cx: number, cz: number, lx: number, lz: number): [number, number] {
-    return [
-      cx * CHUNK_WIDTH + lx,
-      cz * CHUNK_DEPTH + lz,
-    ];
+    const cx = Math.floor(wx / CHUNK_WIDTH);
+    const cz = Math.floor(wz / CHUNK_DEPTH);
+    return [cx, cz];
   }
 }

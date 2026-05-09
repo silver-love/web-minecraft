@@ -1,85 +1,102 @@
-import type { InputManager } from './InputManager'
+import { InputManager } from './InputManager'
 import type { World } from '../world/World'
-import type { BlockRegistry } from '../world/BlockRegistry'
+import type { BlockRegistry } from '../world/BlockType'
+import { CHUNK_HEIGHT } from '../world/Chunk'
 
 export class Player {
-  position: [number, number, number] = [0, 30, 0]
+  position: [number, number, number] = [0, 80, 0]
   velocity: [number, number, number] = [0, 0, 0]
   yaw = 0
   pitch = 0
   onGround = false
-  flying = false
-  selectedSlot = 0
   width = 0.6
   height = 1.8
   eyeHeight = 1.62
-  walkSpeed = 4.317
-  sprintSpeed = 5.612
-  flySpeed = 10
-  jumpVelocity = 8.0
-  gravity = -24.0
-  sneakEnabled = false
+  flying = false
+  sneak = false
+  selectedSlot = 0
+  private world: World
+  private registry: BlockRegistry
+  private sensitivity = 0.002
+  private gravity = -32
+  private jumpSpeed = 8.5
+  private walkSpeed = 4.3
+  private flySpeed = 10
 
-  private lastSpaceTime = 0
+  constructor(world: World, registry: BlockRegistry) {
+    this.world = world
+    this.registry = registry
+  }
 
-  update(dt: number, input: InputManager, world: World, registry: BlockRegistry): void {
+  update(dt: number, input: InputManager): void {
     if (input.isPointerLocked()) {
-      const [mdx, mdy] = input.getMouseDelta()
-      this.yaw += mdx * 0.002
-      this.pitch -= mdy * 0.002
-      this.pitch = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, this.pitch))
+      const [dx, dy] = input.getMouseDelta()
+      this.yaw -= dx * this.sensitivity
+      this.pitch -= dy * this.sensitivity
+      const halfPi = Math.PI / 2
+      this.pitch = Math.max(-halfPi + 0.01, Math.min(halfPi - 0.01, this.pitch))
     }
 
-    const forward = Math.sin(this.yaw)
-    const right = Math.cos(this.yaw)
+    let forward = 0
+    let strafe = 0
+    if (input.isKeyDown('KeyW')) forward += 1
+    if (input.isKeyDown('KeyS')) forward -= 1
+    if (input.isKeyDown('KeyA')) strafe -= 1
+    if (input.isKeyDown('KeyD')) strafe += 1
 
-    let moveX = 0
-    let moveZ = 0
-    if (input.isKeyDown('KeyW')) { moveX += forward; moveZ += right }
-    if (input.isKeyDown('KeyS')) { moveX -= forward; moveZ -= right }
-    if (input.isKeyDown('KeyA')) { moveX -= right; moveZ += forward }
-    if (input.isKeyDown('KeyD')) { moveX += right; moveZ -= forward }
-
-    const moveLen = Math.sqrt(moveX * moveX + moveZ * moveZ)
-    if (moveLen > 0) {
-      moveX /= moveLen
-      moveZ /= moveLen
-    }
-
-    this.sneakEnabled = input.isKeyDown('ShiftLeft')
-    const speed = this.flying ? this.flySpeed : (this.sneakEnabled ? this.walkSpeed * 0.3 : this.walkSpeed)
+    const moveX = -Math.sin(this.yaw) * forward - Math.cos(this.yaw) * strafe
+    const moveZ = Math.cos(this.yaw) * forward - Math.sin(this.yaw) * strafe
+    const len = Math.sqrt(moveX * moveX + moveZ * moveZ)
+    const ndx = len > 0 ? moveX / len : 0
+    const ndz = len > 0 ? moveZ / len : 0
 
     if (this.flying) {
-      this.velocity[0] = moveX * speed
-      this.velocity[2] = moveZ * speed
-      this.velocity[1] = 0
-      if (input.isKeyDown('Space')) this.velocity[1] = speed
-      if (input.isKeyDown('ShiftLeft')) this.velocity[1] = -speed
-    } else {
-      this.velocity[0] = moveX * speed
-      this.velocity[2] = moveZ * speed
-      this.velocity[1] += this.gravity * dt
-
-      if (input.isKeyJustPressed('Space')) {
-        const now = performance.now()
-        if (now - this.lastSpaceTime < 300) {
-          this.flying = true
-          this.velocity[1] = 0
-        }
-        this.lastSpaceTime = now
+      this.velocity[0] = ndx * this.flySpeed
+      this.velocity[2] = ndz * this.flySpeed
+      if (input.isKeyDown('Space')) {
+        this.velocity[1] = this.flySpeed
+      } else if (input.isKeyDown('ShiftLeft')) {
+        this.velocity[1] = -this.flySpeed
+      } else {
+        this.velocity[1] = 0
       }
-
-      if (input.isKeyDown('Space') && this.onGround && !this.flying) {
-        this.velocity[1] = this.jumpVelocity
-        this.onGround = false
+    } else {
+      this.velocity[0] = ndx * this.walkSpeed
+      this.velocity[2] = ndz * this.walkSpeed
+      this.velocity[1] += this.gravity * dt
+      if (input.isKeyDown('Space') && this.onGround) {
+        this.velocity[1] = this.jumpSpeed
       }
     }
 
-    this.moveWithCollision(dt, world, registry)
+    if (input.isKeyJustPressed('KeyF')) {
+      this.flying = !this.flying
+    }
 
-    const scrollDelta = input.getScrollDelta()
-    if (scrollDelta > 0) this.selectedSlot = (this.selectedSlot + 1) % 9
-    else if (scrollDelta < 0) this.selectedSlot = (this.selectedSlot + 8) % 9
+    this.sneak = input.isKeyDown('ShiftLeft')
+
+    this.position[0] += this.velocity[0] * dt
+    if (this.checkCollision(this.position[0], this.position[1], this.position[2])) {
+      this.position[0] -= this.velocity[0] * dt
+      this.velocity[0] = 0
+    }
+
+    this.position[1] += this.velocity[1] * dt
+    if (this.checkCollision(this.position[0], this.position[1], this.position[2])) {
+      if (this.velocity[1] < 0) {
+        this.onGround = true
+      }
+      this.position[1] -= this.velocity[1] * dt
+      this.velocity[1] = 0
+    } else {
+      this.onGround = false
+    }
+
+    this.position[2] += this.velocity[2] * dt
+    if (this.checkCollision(this.position[0], this.position[1], this.position[2])) {
+      this.position[2] -= this.velocity[2] * dt
+      this.velocity[2] = 0
+    }
 
     for (let i = 1; i <= 9; i++) {
       if (input.isKeyJustPressed(`Digit${i}`)) {
@@ -92,156 +109,40 @@ export class Player {
     return [this.position[0], this.position[1] + this.eyeHeight, this.position[2]]
   }
 
-  getAABB(): { minX: number; minY: number; minZ: number; maxX: number; maxY: number; maxZ: number } {
-    const hw = this.width / 2
-    return {
-      minX: this.position[0] - hw,
-      minY: this.position[1],
-      minZ: this.position[2] - hw,
-      maxX: this.position[0] + hw,
-      maxY: this.position[1] + this.height,
-      maxZ: this.position[2] + hw,
-    }
-  }
-
-  private moveWithCollision(dt: number, world: World, registry: BlockRegistry): void {
-    this.position[1] += this.velocity[1] * dt
-    this.resolveCollisionY(world, registry)
-
-    this.position[0] += this.velocity[0] * dt
-    this.resolveCollisionX(world, registry)
-
-    this.position[2] += this.velocity[2] * dt
-    this.resolveCollisionZ(world, registry)
-
-    if (this.sneakEnabled && this.onGround && !this.flying) {
-      this.preventEdgeFall(world, registry)
-    }
-  }
-
-  private resolveCollisionY(world: World, registry: BlockRegistry): void {
-    const aabb = this.getAABB()
-    const minX = Math.floor(aabb.minX)
-    const maxX = Math.floor(aabb.maxX)
-    const minZ = Math.floor(aabb.minZ)
-    const maxZ = Math.floor(aabb.maxZ)
-
-    if (this.velocity[1] < 0) {
-      const y = Math.floor(aabb.minY)
-      for (let bx = minX; bx <= maxX; bx++) {
-        for (let bz = minZ; bz <= maxZ; bz++) {
-          if (registry.isSolid(world.getBlock(bx, y, bz))) {
-            this.position[1] = y + 1
-            this.velocity[1] = 0
-            this.onGround = true
-            return
-          }
-        }
-      }
-      this.onGround = false
-    } else if (this.velocity[1] > 0) {
-      const y = Math.floor(aabb.maxY)
-      for (let bx = minX; bx <= maxX; bx++) {
-        for (let bz = minZ; bz <= maxZ; bz++) {
-          if (registry.isSolid(world.getBlock(bx, y, bz))) {
-            this.position[1] = y - this.height
-            this.velocity[1] = 0
-            return
-          }
-        }
-      }
-    }
-  }
-
-  private resolveCollisionX(world: World, registry: BlockRegistry): void {
-    const aabb = this.getAABB()
-    const minY = Math.floor(aabb.minY)
-    const maxY = Math.floor(aabb.maxY)
-    const minZ = Math.floor(aabb.minZ)
-    const maxZ = Math.floor(aabb.maxZ)
-
-    if (this.velocity[0] > 0) {
-      const x = Math.floor(aabb.maxX)
-      for (let by = minY; by <= maxY; by++) {
-        for (let bz = minZ; bz <= maxZ; bz++) {
-          if (registry.isSolid(world.getBlock(x, by, bz))) {
-            this.position[0] = x - this.width / 2
-            this.velocity[0] = 0
-            return
-          }
-        }
-      }
-    } else if (this.velocity[0] < 0) {
-      const x = Math.floor(aabb.minX)
-      for (let by = minY; by <= maxY; by++) {
-        for (let bz = minZ; bz <= maxZ; bz++) {
-          if (registry.isSolid(world.getBlock(x, by, bz))) {
-            this.position[0] = x + 1 + this.width / 2
-            this.velocity[0] = 0
-            return
-          }
-        }
-      }
-    }
-  }
-
-  private resolveCollisionZ(world: World, registry: BlockRegistry): void {
-    const aabb = this.getAABB()
-    const minX = Math.floor(aabb.minX)
-    const maxX = Math.floor(aabb.maxX)
-    const minY = Math.floor(aabb.minY)
-    const maxY = Math.floor(aabb.maxY)
-
-    if (this.velocity[2] > 0) {
-      const z = Math.floor(aabb.maxZ)
-      for (let bx = minX; bx <= maxX; bx++) {
-        for (let by = minY; by <= maxY; by++) {
-          if (registry.isSolid(world.getBlock(bx, by, z))) {
-            this.position[2] = z - this.width / 2
-            this.velocity[2] = 0
-            return
-          }
-        }
-      }
-    } else if (this.velocity[2] < 0) {
-      const z = Math.floor(aabb.minZ)
-      for (let bx = minX; bx <= maxX; bx++) {
-        for (let by = minY; by <= maxY; by++) {
-          if (registry.isSolid(world.getBlock(bx, by, z))) {
-            this.position[2] = z + 1 + this.width / 2
-            this.velocity[2] = 0
-            return
-          }
-        }
-      }
-    }
-  }
-
-  private preventEdgeFall(world: World, registry: BlockRegistry): void {
-    const aabb = this.getAABB()
-    const y = Math.floor(aabb.minY) - 1
-    const hw = this.width / 2 + 0.01
-
-    const checkPoints: [number, number][] = [
-      [this.position[0] - hw, this.position[2] - hw],
-      [this.position[0] + hw, this.position[2] - hw],
-      [this.position[0] - hw, this.position[2] + hw],
-      [this.position[0] + hw, this.position[2] + hw],
+  getLookDirection(): [number, number, number] {
+    return [
+      -Math.sin(this.yaw) * Math.cos(this.pitch),
+      Math.sin(this.pitch),
+      Math.cos(this.yaw) * Math.cos(this.pitch),
     ]
+  }
 
-    let supported = false
-    for (const [px, pz] of checkPoints) {
-      if (registry.isSolid(world.getBlock(Math.floor(px), y, Math.floor(pz)))) {
-        supported = true
-        break
+  private checkCollision(x: number, y: number, z: number): boolean {
+    const halfW = this.width / 2
+    const minX = Math.floor(x - halfW)
+    const maxX = Math.floor(x + halfW)
+    const minY = Math.floor(y)
+    const maxY = Math.floor(y + this.height)
+    const minZ = Math.floor(z - halfW)
+    const maxZ = Math.floor(z + halfW)
+
+    for (let bx = minX; bx <= maxX; bx++) {
+      for (let by = minY; by <= maxY; by++) {
+        for (let bz = minZ; bz <= maxZ; bz++) {
+          if (by < 0 || by >= CHUNK_HEIGHT) continue
+          const blockId = this.world.getBlock(bx, by, bz)
+          if (this.registry.isSolid(blockId)) {
+            if (
+              x + halfW > bx && x - halfW < bx + 1 &&
+              y + this.height > by && y < by + 1 &&
+              z + halfW > bz && z - halfW < bz + 1
+            ) {
+              return true
+            }
+          }
+        }
       }
     }
-
-    if (!supported) {
-      this.position[0] -= this.velocity[0] * 0.016
-      this.position[2] -= this.velocity[2] * 0.016
-      this.velocity[0] = 0
-      this.velocity[2] = 0
-    }
+    return false
   }
 }

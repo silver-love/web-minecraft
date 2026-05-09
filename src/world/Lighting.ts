@@ -1,6 +1,6 @@
-import { Chunk, CHUNK_WIDTH, CHUNK_DEPTH, CHUNK_HEIGHT } from './Chunk'
+import type { BlockRegistry } from './BlockType'
 import type { World } from './World'
-import type { BlockRegistry } from './BlockRegistry'
+import { CHUNK_HEIGHT } from './Chunk'
 
 export class LightingEngine {
   private world: World
@@ -11,14 +11,16 @@ export class LightingEngine {
     this.registry = registry
   }
 
-  initializeSkyLight(chunk: Chunk): void {
-    for (let x = 0; x < CHUNK_WIDTH; x++) {
-      for (let z = 0; z < CHUNK_DEPTH; z++) {
+  initializeSkyLight(chunkX: number, chunkZ: number): void {
+    const chunk = this.world.getChunk(chunkX, chunkZ)
+    if (!chunk) return
+
+    for (let x = 0; x < 16; x++) {
+      for (let z = 0; z < 16; z++) {
         let light = 15
         for (let y = CHUNK_HEIGHT - 1; y >= 0; y--) {
-          const blockId = chunk.getBlock(x, y, z)
-          if (blockId !== 0 && !this.registry.isTransparent(blockId)) {
-            light = Math.max(0, light - 1)
+          if (light > 0 && this.registry.isSolid(chunk.getBlock(x, y, z))) {
+            light = 0
           }
           chunk.setSkyLight(x, y, z, light)
         }
@@ -26,76 +28,60 @@ export class LightingEngine {
     }
   }
 
-  propagateBlockLight(chunk: Chunk): void {
-    const queue: number[] = []
+  propagateBlockLight(x: number, y: number, z: number): void {
+    const emission = this.registry.getLightEmission(this.world.getBlock(x, y, z))
+    if (emission <= 0) return
 
-    for (let x = 0; x < CHUNK_WIDTH; x++) {
-      for (let z = 0; z < CHUNK_DEPTH; z++) {
-        for (let y = 0; y < CHUNK_HEIGHT; y++) {
-          const blockId = chunk.getBlock(x, y, z)
-          const emission = this.registry.getLightEmission(blockId)
-          if (emission > 0) {
-            chunk.setBlockLight(x, y, z, emission)
-            queue.push(x, y, z)
+    const queue: { x: number; y: number; z: number; level: number }[] = [{ x, y, z, level: emission }]
+    const visited = new Set<string>()
+    visited.add(`${x},${y},${z}`)
+
+    while (queue.length > 0) {
+      const current = queue.shift()!
+
+      const dirs = [
+        [1, 0, 0], [-1, 0, 0],
+        [0, 1, 0], [0, -1, 0],
+        [0, 0, 1], [0, 0, -1],
+      ]
+
+      for (const [dx, dy, dz] of dirs) {
+        const nx = current.x + dx
+        const ny = current.y + dy
+        const nz = current.z + dz
+        const key = `${nx},${ny},${nz}`
+
+        if (visited.has(key)) continue
+        if (ny < 0 || ny >= CHUNK_HEIGHT) continue
+
+        const neighborId = this.world.getBlock(nx, ny, nz)
+        if (this.registry.isSolid(neighborId) && !this.registry.isTransparent(neighborId)) continue
+
+        const newLevel = current.level - 1
+        if (newLevel <= 0) continue
+
+        visited.add(key)
+
+        const [cx, cz] = this.world.worldToChunk(nx, nz)
+        const chunk = this.world.getChunk(cx, cz)
+        if (chunk) {
+          const lx = ((nx % 16) + 16) % 16
+          const lz = ((nz % 16) + 16) % 16
+          if (chunk.getBlockLight(lx, ny, lz) < newLevel) {
+            chunk.setBlockLight(lx, ny, lz, newLevel)
+            queue.push({ x: nx, y: ny, z: nz, level: newLevel })
           }
         }
       }
     }
+  }
 
-    const dirs = [0, 1, 0, 0, -1, 0, 0, 0, 1, 0, 0, -1, 1, 0, 0, -1, 0, 0]
+  updateLightAt(wx: number, wy: number, wz: number): void {
+    const [cx, cz] = this.world.worldToChunk(wx, wz)
+    this.initializeSkyLight(cx, cz)
 
-    let idx = 0
-    while (idx < queue.length) {
-      const cx = queue[idx++]
-      const cy = queue[idx++]
-      const cz = queue[idx++]
-      const currentLight = chunk.getBlockLight(cx, cy, cz)
-      if (currentLight <= 1) continue
-
-      for (let d = 0; d < 6; d++) {
-        const nx = cx + dirs[d * 3]
-        const ny = cy + dirs[d * 3 + 1]
-        const nz = cz + dirs[d * 3 + 2]
-
-        let neighborLight: number
-        if (nx >= 0 && nx < CHUNK_WIDTH && ny >= 0 && ny < CHUNK_HEIGHT && nz >= 0 && nz < CHUNK_DEPTH) {
-          neighborLight = chunk.getBlockLight(nx, ny, nz)
-          if (neighborLight < currentLight - 1) {
-            const nBlockId = chunk.getBlock(nx, ny, nz)
-            if (nBlockId === 0 || this.registry.isTransparent(nBlockId)) {
-              chunk.setBlockLight(nx, ny, nz, currentLight - 1)
-              queue.push(nx, ny, nz)
-            }
-          }
-        }
-      }
+    if (this.registry.getLightEmission(this.world.getBlock(wx, wy, wz)) > 0) {
+      this.propagateBlockLight(wx, wy, wz)
     }
-  }
-
-  updateLightAt(wx: number, _wy: number, wz: number): void {
-    const [cx, cz] = this.world.worldToChunk(wx, wz)
-    const chunk = this.world.getChunk(cx, cz)
-    if (!chunk) return
-
-    this.initializeSkyLight(chunk)
-    this.propagateBlockLight(chunk)
-  }
-
-  getSkyLight(wx: number, wy: number, wz: number): number {
-    const [cx, cz] = this.world.worldToChunk(wx, wz)
-    const chunk = this.world.getChunk(cx, cz)
-    if (!chunk) return 15
-    const lx = ((wx % CHUNK_WIDTH) + CHUNK_WIDTH) % CHUNK_WIDTH
-    const lz = ((wz % CHUNK_DEPTH) + CHUNK_DEPTH) % CHUNK_DEPTH
-    return chunk.getSkyLight(lx, wy, lz)
-  }
-
-  getBlockLight(wx: number, wy: number, wz: number): number {
-    const [cx, cz] = this.world.worldToChunk(wx, wz)
-    const chunk = this.world.getChunk(cx, cz)
-    if (!chunk) return 0
-    const lx = ((wx % CHUNK_WIDTH) + CHUNK_WIDTH) % CHUNK_WIDTH
-    const lz = ((wz % CHUNK_DEPTH) + CHUNK_DEPTH) % CHUNK_DEPTH
-    return chunk.getBlockLight(lx, wy, lz)
   }
 }

@@ -1,0 +1,35 @@
+- [ ] 项目基础设施重置完成，TypeScript 编译通过
+- [ ] MathUtils 矩阵运算正确（perspective/lookAt/multiply）
+- [ ] SimplexNoise 输出范围 [-1, 1]
+- [ ] BlockType 注册所有方块类型，get/isTransparent/isSolid 正确
+- [ ] Chunk getBlock/setBlock 正确，跨边界返回 0/空气
+- [ ] World 坐标转换正确，跨区块读写正确
+- [ ] Shader 编译链接成功，无 GL 错误
+- [ ] Camera 视图/投影矩阵正确，视锥体平面提取正确
+- [ ] Renderer 初始化 GL 状态，清除缓冲显示正确颜色
+- [ ] 纹理图集生成 256×256，所有方块纹理绘制，WebGL 纹理上传成功
+- [ ] Section 网格构建正确，邻接面剔除正确，VAO/VBO/IBO 上传成功
+- [ ] ChunkRenderer 视锥体剔除正确，按 Section 渲染可见区块
+- [ ] 天空渲染显示渐变天空，昼夜颜色变化
+- [ ] 生物群系选择基于温度/降雨噪声，高度参数合理
+- [ ] 地形生成：地表高度 30~80 范围，海平面(62)以下有水，洞穴存在，矿石分布正确，树木生成
+- [ ] 光照系统：天空光从顶向下传播，方块光 BFS 传播
+- [ ] ChunkManager 按距离加载/卸载区块，每帧生成 4 个区块
+- [ ] InputManager 键盘/鼠标事件正确，Pointer Lock 工作正常
+- [ ] Player 移动/跳跃/碰撞/视角旋转正常
+- [ ] Game 状态机 LOADIN→MENU→PLAYING→PAUSED 切换正确
+- [ ] 主循环 tick/render 分离，帧率稳定
+- [ ] LoadingScreen 显示进度条和状态文字
+- [ ] MainMenu 显示标题和按钮，点击响应正确
+- [ ] PauseMenu 显示按钮，ESC 触发，返回游戏正确
+- [ ] HUD 显示准星、快捷栏、血量、饥饿值
+- [ ] DebugOverlay F3 切换，显示 FPS/坐标/朝向/区块数
+- [ ] Inventory 物品栏操作正确，序列化/反序列化正确
+- [ ] GameManager 游戏模式/时间/生命/饥饿更新正确
+- [ ] SaveManager IndexedDB 存档/读档/自动保存正常
+- [ ] DDA 射线检测正确找到目标方块
+- [ ] 左键破坏方块，右键放置方块，Section 网格重建
+- [ ] 方块高亮线框渲染正确
+- [ ] 完整游戏流程可玩：启动→加载→主菜单→进入游戏→移动→交互→暂停→退出
+- [ ] TypeScript 编译通过，Vite 构建成功
+- [ ] GitHub Pages 部署成功，线上可玩

@@ -1,86 +1,78 @@
 export interface ItemStack {
-  id: number
-  count: number
+  id: number;
+  count: number;
 }
 
 export class Inventory {
-  slots: (ItemStack | null)[] = new Array(36).fill(null)
-  selectedSlot: number = 0
+  slots: (ItemStack | null)[] = Array(36).fill(null);
+  selectedSlot = 0;
+
+  addItem(id: number, count: number): boolean {
+    let remaining = count;
+
+    for (let i = 0; i < this.slots.length && remaining > 0; i++) {
+      const slot = this.slots[i];
+      if (slot !== null && slot.id === id && slot.count < 64) {
+        const canAdd = Math.min(remaining, 64 - slot.count);
+        slot.count += canAdd;
+        remaining -= canAdd;
+      }
+    }
+
+    for (let i = 0; i < this.slots.length && remaining > 0; i++) {
+      if (this.slots[i] === null) {
+        const canAdd = Math.min(remaining, 64);
+        this.slots[i] = { id, count: canAdd };
+        remaining -= canAdd;
+      }
+    }
+
+    return remaining === 0;
+  }
+
+  removeItem(id: number, count: number): boolean {
+    let available = 0;
+    for (const slot of this.slots) {
+      if (slot !== null && slot.id === id) {
+        available += slot.count;
+      }
+    }
+
+    if (available < count) {
+      return false;
+    }
+
+    let remaining = count;
+    for (let i = 0; i < this.slots.length && remaining > 0; i++) {
+      const slot = this.slots[i];
+      if (slot !== null && slot.id === id) {
+        if (slot.count <= remaining) {
+          remaining -= slot.count;
+          this.slots[i] = null;
+        } else {
+          slot.count -= remaining;
+          remaining = 0;
+        }
+      }
+    }
+
+    return true;
+  }
 
   getSelectedItem(): ItemStack | null {
-    return this.slots[this.selectedSlot]
+    return this.slots[this.selectedSlot];
   }
 
-  addItem(id: number, count: number): number {
-    let remaining = count
-
-    for (let i = 0; i < this.slots.length && remaining > 0; i++) {
-      const slot = this.slots[i]
-      if (slot && slot.id === id && slot.count < this.getMaxStack(id)) {
-        const canAdd = this.getMaxStack(id) - slot.count
-        const toAdd = Math.min(remaining, canAdd)
-        slot.count += toAdd
-        remaining -= toAdd
-      }
-    }
-
-    for (let i = 0; i < this.slots.length && remaining > 0; i++) {
-      if (!this.slots[i]) {
-        const toAdd = Math.min(remaining, this.getMaxStack(id))
-        this.slots[i] = { id, count: toAdd }
-        remaining -= toAdd
-      }
-    }
-
-    return remaining
-  }
-
-  removeItem(slot: number, count: number): boolean {
-    const item = this.slots[slot]
-    if (!item || item.count < count) return false
-    item.count -= count
-    if (item.count === 0) {
-      this.slots[slot] = null
-    }
-    return true
-  }
-
-  swapSlots(a: number, b: number): void {
-    const temp = this.slots[a]
-    this.slots[a] = this.slots[b]
-    this.slots[b] = temp
-  }
-
-  canStack(id: number): number {
-    for (let i = 0; i < this.slots.length; i++) {
-      const slot = this.slots[i]
-      if (slot && slot.id === id && slot.count < this.getMaxStack(id)) {
-        return i
-      }
-    }
-    return -1
-  }
-
-  getMaxStack(_id: number): number {
-    return 64
-  }
-
-  clear(): void {
-    for (let i = 0; i < this.slots.length; i++) {
-      this.slots[i] = null
-    }
+  setSelectedSlot(slot: number): void {
+    this.selectedSlot = Math.max(0, Math.min(35, slot));
   }
 
   serialize(): string {
-    return JSON.stringify({
-      slots: this.slots,
-      selectedSlot: this.selectedSlot,
-    })
+    return JSON.stringify(this.slots);
   }
 
   deserialize(data: string): void {
-    const parsed = JSON.parse(data)
-    this.slots = parsed.slots
-    this.selectedSlot = parsed.selectedSlot
+    const parsed = JSON.parse(data) as (ItemStack | null)[];
+    this.slots = parsed;
   }
 }
