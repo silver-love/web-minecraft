@@ -77,13 +77,12 @@ export class WorldGenerator {
           }
         }
 
+        let skyLight = 15
         for (let y = CHUNK_HEIGHT - 1; y >= 0; y--) {
-          if (this.registry.isSolid(chunk.getBlock(x, y, z))) {
-            for (let sy = y + 1; sy < CHUNK_HEIGHT; sy++) {
-              chunk.setSkyLight(x, sy, z, 15)
-            }
-            break
+          if (skyLight > 0 && this.registry.isSolid(chunk.getBlock(x, y, z))) {
+            skyLight = 0
           }
+          chunk.setSkyLight(x, y, z, skyLight)
         }
       }
     }

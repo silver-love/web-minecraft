@@ -32,7 +32,7 @@ export class Player {
     if (input.isPointerLocked()) {
       const [dx, dy] = input.getMouseDelta()
       this.yaw -= dx * this.sensitivity
-      this.pitch -= dy * this.sensitivity
+      this.pitch += dy * this.sensitivity
       const halfPi = Math.PI / 2
       this.pitch = Math.max(-halfPi + 0.01, Math.min(halfPi - 0.01, this.pitch))
     }
@@ -113,7 +113,7 @@ export class Player {
     return [
       -Math.sin(this.yaw) * Math.cos(this.pitch),
       Math.sin(this.pitch),
-      Math.cos(this.yaw) * Math.cos(this.pitch),
+      -Math.cos(this.yaw) * Math.cos(this.pitch),
     ]
   }
 

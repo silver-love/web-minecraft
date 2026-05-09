@@ -39,8 +39,6 @@ export class ChunkMesher {
     const indices: number[] = [];
     let vertexCount = 0;
 
-    const chunk = this.world.getChunk(cx, cz);
-
     for (let ly = 0; ly < SECTION_HEIGHT; ly++) {
       const wy = sectionY * SECTION_HEIGHT + ly;
       for (let lz = 0; lz < 16; lz++) {
@@ -51,15 +49,20 @@ export class ChunkMesher {
           if (blockId === 0) continue;
 
           const blockType = this.registry.get(blockId);
-          const skyLight = chunk ? chunk.getSkyLight(lx, wy, lz) / 15 : 1;
-          const blockLight = chunk ? chunk.getBlockLight(lx, wy, lz) / 15 : 0;
 
           for (let face = 0; face < 6; face++) {
             const [dx, dy, dz] = FACE_OFFSETS[face];
             const neighborId = this.world.getBlock(wx + dx, wy + dy, wz + dz);
 
-            if (!this.registry.isTransparent(neighborId)) continue;
-            if (neighborId === blockId && blockType.name !== 'water') continue;
+            if (!this.registry.isTransparent(neighborId)) continue
+            if (blockId === 7 && neighborId === 7) continue;
+
+            const [ncx, ncz] = this.world.worldToChunk(wx + dx, wz + dz)
+            const neighborChunk = this.world.getChunk(ncx, ncz)
+            const nlx = ((wx + dx) % 16 + 16) % 16
+            const nlz = ((wz + dz) % 16 + 16) % 16
+            const skyLight = neighborChunk ? neighborChunk.getSkyLight(nlx, wy + dy, nlz) / 15 : 1
+            const blockLight = neighborChunk ? neighborChunk.getBlockLight(nlx, wy + dy, nlz) / 15 : 0
 
             const texIdx = blockType.textureIndices
               ? blockType.textureIndices[face]

@@ -150,11 +150,20 @@ export class Game {
     this.loadingText = 'Generating world...'
     this.loadingProgress = 0
 
-    const totalChunks = 7 * 7
-    let loaded = 0
-
+    const chunks: [number, number][] = []
     for (let cx = -3; cx <= 3; cx++) {
       for (let cz = -3; cz <= 3; cz++) {
+        chunks.push([cx, cz])
+      }
+    }
+
+    let loaded = 0
+    const totalChunks = chunks.length
+
+    const generateNext = (): void => {
+      const batchSize = 2
+      for (let i = 0; i < batchSize && loaded < totalChunks; i++) {
+        const [cx, cz] = chunks[loaded]
         const chunk = this.world.getOrCreateChunk(cx, cz)
         this.worldGen.generateChunk(chunk)
         this.lighting.initializeSkyLight(cx, cz)
@@ -164,11 +173,17 @@ export class Game {
         loaded++
         this.loadingProgress = loaded / totalChunks
       }
+
+      if (loaded < totalChunks) {
+        setTimeout(generateNext, 0)
+      } else {
+        this.player.position = [8, 80, 8]
+        this.state = 'PLAYING'
+        this.input.requestPointerLock()
+      }
     }
 
-    this.player.position = [8, 80, 8]
-    this.state = 'PLAYING'
-    this.input.requestPointerLock()
+    setTimeout(generateNext, 0)
   }
 
   private resumeGame(): void {
