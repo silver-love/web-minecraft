@@ -27,35 +27,35 @@ export interface Biome {
 
 const BIOMES: Biome[] = [
   {
-    type: BiomeType.OCEAN, name: 'ocean', baseHeight: 3, heightVariation: 1,
+    type: BiomeType.OCEAN, name: 'ocean', baseHeight: 28, heightVariation: 4,
     temperature: 0.5, rainfall: 0.8, surfaceBlock: 7, subsurfaceBlock: 1, treeChance: 0,
   },
   {
-    type: BiomeType.PLAINS, name: 'plains', baseHeight: 8, heightVariation: 3,
+    type: BiomeType.PLAINS, name: 'plains', baseHeight: 34, heightVariation: 4,
     temperature: 0.5, rainfall: 0.4, surfaceBlock: 3, subsurfaceBlock: 2, treeChance: 0.005,
   },
   {
-    type: BiomeType.DESERT, name: 'desert', baseHeight: 8, heightVariation: 2,
+    type: BiomeType.DESERT, name: 'desert', baseHeight: 33, heightVariation: 3,
     temperature: 0.9, rainfall: 0.1, surfaceBlock: 6, subsurfaceBlock: 6, treeChance: 0.003,
   },
   {
-    type: BiomeType.FOREST, name: 'forest', baseHeight: 9, heightVariation: 4,
+    type: BiomeType.FOREST, name: 'forest', baseHeight: 36, heightVariation: 6,
     temperature: 0.6, rainfall: 0.5, surfaceBlock: 3, subsurfaceBlock: 2, treeChance: 0.03,
   },
   {
-    type: BiomeType.TAIGA, name: 'taiga', baseHeight: 10, heightVariation: 5,
+    type: BiomeType.TAIGA, name: 'taiga', baseHeight: 38, heightVariation: 8,
     temperature: 0.2, rainfall: 0.4, surfaceBlock: 3, subsurfaceBlock: 1, treeChance: 0.02,
   },
   {
-    type: BiomeType.MOUNTAINS, name: 'mountains', baseHeight: 20, heightVariation: 15,
+    type: BiomeType.MOUNTAINS, name: 'mountains', baseHeight: 55, heightVariation: 25,
     temperature: 0.3, rainfall: 0.3, surfaceBlock: 1, subsurfaceBlock: 1, treeChance: 0.001,
   },
   {
-    type: BiomeType.SWAMP, name: 'swamp', baseHeight: 6, heightVariation: 1,
+    type: BiomeType.SWAMP, name: 'swamp', baseHeight: 31, heightVariation: 2,
     temperature: 0.7, rainfall: 0.7, surfaceBlock: 3, subsurfaceBlock: 2, treeChance: 0.01,
   },
   {
-    type: BiomeType.SNOWY_TUNDRA, name: 'snowy_tundra', baseHeight: 8, heightVariation: 3,
+    type: BiomeType.SNOWY_TUNDRA, name: 'snowy_tundra', baseHeight: 34, heightVariation: 5,
     temperature: 0.1, rainfall: 0.3, surfaceBlock: 3, subsurfaceBlock: 2, treeChance: 0.001,
   },
 ]

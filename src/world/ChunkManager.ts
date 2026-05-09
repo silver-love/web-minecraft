@@ -71,7 +71,7 @@ export class ChunkManager {
     }
 
     let processed = 0
-    while (this.generateQueue.length > 0 && processed < 2) {
+    while (this.generateQueue.length > 0 && processed < 4) {
       const key = this.generateQueue.shift()!
       if (this.loadedChunks.has(key) || this.pendingChunks.has(key)) continue
       const [cx, cz] = key.split(',').map(Number)

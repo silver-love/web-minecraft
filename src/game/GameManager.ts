@@ -59,7 +59,7 @@ export class GameManager {
   placeBlock(world: World, _registry: BlockRegistry, x: number, y: number, z: number, blockId: number): boolean {
     const existing = world.getBlock(x, y, z)
     if (existing !== 0) return false
-    if (y < 0 || y >= 384) return false
+    if (y < 0 || y >= 128) return false
 
     if (this.gameMode === GameMode.SURVIVAL) {
       const selectedItem = this.inventory.getSelectedItem()

@@ -1,6 +1,6 @@
 export const CHUNK_WIDTH = 16;
 export const CHUNK_DEPTH = 16;
-export const CHUNK_HEIGHT = 384;
+export const CHUNK_HEIGHT = 128;
 
 export class Chunk {
   readonly cx: number;

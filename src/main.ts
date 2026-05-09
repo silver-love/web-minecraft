@@ -242,75 +242,81 @@ async function startGame(): Promise<void> {
   if (loading) return
   loading = true
 
-  let seed = DEFAULT_SEED
-  let loadedChunks: Map<string, Chunk> | null = null
-  let metadata: WorldMetaData | null = null
+  try {
+    let seed = DEFAULT_SEED
+    let loadedChunks: Map<string, Chunk> | null = null
+    let metadata: WorldMetaData | null = null
 
-  const lastWorld = localStorage.getItem('minecraft_lastworld')
-  if (lastWorld) {
-    try {
-      const loaded = await saveManager.loadWorld(lastWorld)
-      seed = loaded.metadata.seed
-      metadata = loaded.metadata
-      loadedChunks = new Map()
-      for (const c of loaded.chunks) {
-        const parts = c.key.split(',')
-        const cx = Number(parts[0])
-        const cz = Number(parts[1])
-        loadedChunks.set(c.key, Chunk.fromData(cx, cz, c.data, c.skyLight, c.blockLight))
+    const lastWorld = localStorage.getItem('minecraft_lastworld')
+    if (lastWorld) {
+      try {
+        const loaded = await saveManager.loadWorld(lastWorld)
+        seed = loaded.metadata.seed
+        metadata = loaded.metadata
+        loadedChunks = new Map()
+        for (const c of loaded.chunks) {
+          const parts = c.key.split(',')
+          const cx = Number(parts[0])
+          const cz = Number(parts[1])
+          loadedChunks.set(c.key, Chunk.fromData(cx, cz, c.data, c.skyLight, c.blockLight))
+        }
+      } catch {
+        loadedChunks = null
+        metadata = null
       }
-    } catch {
-      loadedChunks = null
-      metadata = null
     }
+
+    currentSeed = seed
+    world = new World()
+    if (loadedChunks) {
+      world.chunks = loadedChunks
+    }
+
+    const biomeManager = new BiomeManager(seed)
+    const worldGen = new WorldGenerator(seed, registry, biomeManager)
+    const lighting = new LightingEngine(world, registry)
+    chunkManager = new ChunkManager(world, mesher, glCtx, renderer, worldGen, lighting)
+
+    player = new Player()
+    gameManager = new GameManager()
+    gameManager.chunkManager = chunkManager
+    blockInteraction = new BlockInteraction(gameManager, world, registry)
+    commandSystem = new CommandSystem(world, player, gameManager, registry, currentSeed)
+
+    if (metadata) {
+      player.position = [...metadata.playerPosition] as [number, number, number]
+      player.yaw = metadata.playerYaw
+      player.pitch = metadata.playerPitch
+      gameManager.gameMode = metadata.gameMode as GameMode
+      gameManager.gameTime = metadata.gameTime
+      gameManager.health = metadata.health
+      gameManager.hunger = metadata.hunger
+      gameManager.inventory.deserialize(metadata.inventoryData)
+    } else {
+      player.position = [8, 50, 8]
+      gameManager.inventory.slots[0] = { id: 1, count: 64 }
+      gameManager.inventory.slots[1] = { id: 2, count: 64 }
+      gameManager.inventory.slots[2] = { id: 3, count: 64 }
+      gameManager.inventory.slots[3] = { id: 4, count: 64 }
+      gameManager.inventory.slots[4] = { id: 5, count: 64 }
+      gameManager.inventory.slots[5] = { id: 9, count: 64 }
+      gameManager.inventory.slots[6] = { id: 8, count: 64 }
+      gameManager.inventory.slots[7] = { id: 6, count: 64 }
+      gameManager.inventory.slots[8] = { id: 17, count: 64 }
+    }
+
+    localStorage.setItem('minecraft_lastworld', WORLD_NAME)
+    autoSave.start(WORLD_NAME, getMetadata, () => world.chunks)
+
+    overlay.style.display = 'none'
+    gameStarted = true
+    lastTime = performance.now()
+    requestAnimationFrame(gameLoop)
+  } catch (e) {
+    console.error('Failed to start game:', e)
+    loading = false
+    playText.textContent = 'Error starting game. Click to retry.'
   }
-
-  currentSeed = seed
-  world = new World()
-  if (loadedChunks) {
-    world.chunks = loadedChunks
-  }
-
-  const biomeManager = new BiomeManager(seed)
-  const worldGen = new WorldGenerator(seed, registry, biomeManager)
-  const lighting = new LightingEngine(world, registry)
-  chunkManager = new ChunkManager(world, mesher, glCtx, renderer, worldGen, lighting)
-
-  player = new Player()
-  gameManager = new GameManager()
-  gameManager.chunkManager = chunkManager
-  blockInteraction = new BlockInteraction(gameManager, world, registry)
-  commandSystem = new CommandSystem(world, player, gameManager, registry, currentSeed)
-
-  if (metadata) {
-    player.position = [...metadata.playerPosition] as [number, number, number]
-    player.yaw = metadata.playerYaw
-    player.pitch = metadata.playerPitch
-    gameManager.gameMode = metadata.gameMode as GameMode
-    gameManager.gameTime = metadata.gameTime
-    gameManager.health = metadata.health
-    gameManager.hunger = metadata.hunger
-    gameManager.inventory.deserialize(metadata.inventoryData)
-  } else {
-    player.position = [8, 40, 80]
-    gameManager.inventory.slots[0] = { id: 1, count: 64 }
-    gameManager.inventory.slots[1] = { id: 2, count: 64 }
-    gameManager.inventory.slots[2] = { id: 3, count: 64 }
-    gameManager.inventory.slots[3] = { id: 4, count: 64 }
-    gameManager.inventory.slots[4] = { id: 5, count: 64 }
-    gameManager.inventory.slots[5] = { id: 9, count: 64 }
-    gameManager.inventory.slots[6] = { id: 8, count: 64 }
-    gameManager.inventory.slots[7] = { id: 6, count: 64 }
-    gameManager.inventory.slots[8] = { id: 17, count: 64 }
-  }
-
-  localStorage.setItem('minecraft_lastworld', WORLD_NAME)
-  autoSave.start(WORLD_NAME, getMetadata, () => world.chunks)
-
-  overlay.style.display = 'none'
-  gameStarted = true
-  lastTime = performance.now()
-  requestAnimationFrame(gameLoop)
 }
 
 overlay.addEventListener('click', () => {
@@ -331,7 +337,9 @@ canvas.addEventListener('click', () => {
 
 window.addEventListener('beforeunload', () => {
   if (gameStarted) {
-    saveManager.saveWorld(WORLD_NAME, getMetadata(), world.chunks)
+    try {
+      saveManager.saveWorld(WORLD_NAME, getMetadata(), world.chunks)
+    } catch { }
   }
 })
 

@@ -147,7 +147,7 @@ export class Renderer {
     for (const entry of this.chunkEntries) {
       const minX = entry.cx * 16
       const minZ = entry.cz * 16
-      if (frustumAABBIntersect(planes, minX, 0, minZ, minX + 16, 384, minZ + 16)) {
+      if (frustumAABBIntersect(planes, minX, 0, minZ, minX + 16, 128, minZ + 16)) {
         this.drawChunkMesh(entry.mesh)
       }
     }

@@ -16,7 +16,7 @@ const BLOCK_IRON_ORE = 12
 const BLOCK_GOLD_ORE = 13
 const BLOCK_DIAMOND_ORE = 14
 const BLOCK_BEDROCK = 15
-const SEA_LEVEL = 5
+const SEA_LEVEL = 32
 
 export class WorldGenerator {
   private biomeManager: BiomeManager
@@ -61,7 +61,7 @@ export class WorldGenerator {
           }
 
           if (y > surfaceY) {
-            if (y <= SEA_LEVEL && biome.type !== 0) {
+            if (y <= SEA_LEVEL) {
               chunk.setBlock(lx, y, lz, BLOCK_WATER)
             }
             continue
@@ -92,7 +92,7 @@ export class WorldGenerator {
   }
 
   private isCave(wx: number, y: number, wz: number): boolean {
-    if (y < 2 || y > 40) return false
+    if (y < 2 || y > 55) return false
     const n1 = this.caveNoise.noise3D(wx * 0.05, y * 0.05, wz * 0.05)
     const n2 = this.caveNoise2.noise3D(wx * 0.08, y * 0.08, wz * 0.08)
     return n1 * n1 + n2 * n2 < 0.02
@@ -100,8 +100,8 @@ export class WorldGenerator {
 
   private getOreBlock(wx: number, y: number, wz: number): number {
     if (y <= 80 && this.coalNoise.noise3D(wx * 0.1, y * 0.1, wz * 0.1) > 0.7) return BLOCK_COAL_ORE
-    if (y <= 40 && this.ironNoise.noise3D(wx * 0.1, y * 0.1, wz * 0.1) > 0.75) return BLOCK_IRON_ORE
-    if (y <= 20 && this.goldNoise.noise3D(wx * 0.15, y * 0.15, wz * 0.15) > 0.82) return BLOCK_GOLD_ORE
+    if (y <= 50 && this.ironNoise.noise3D(wx * 0.1, y * 0.1, wz * 0.1) > 0.75) return BLOCK_IRON_ORE
+    if (y <= 30 && this.goldNoise.noise3D(wx * 0.15, y * 0.15, wz * 0.15) > 0.82) return BLOCK_GOLD_ORE
     if (y <= 16 && this.diamondNoise.noise3D(wx * 0.15, y * 0.15, wz * 0.15) > 0.88) return BLOCK_DIAMOND_ORE
     return BLOCK_AIR
   }
