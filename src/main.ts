@@ -18,6 +18,8 @@ import { AutoSave } from './game/AutoSave'
 import { Chunk } from './world/Chunk'
 import type { WorldMetaData } from './game/SaveManager'
 import { TickSystem } from './game/TickSystem'
+import { HUD } from './ui/HUD'
+import { DebugOverlay } from './ui/DebugOverlay'
 import { CommandSystem } from './game/CommandSystem'
 
 const canvas = document.getElementById('game-canvas') as HTMLCanvasElement
@@ -64,12 +66,19 @@ renderer.setTextureAtlas(texture)
 const input = new InputManager(canvas)
 const tickSystem = new TickSystem()
 
+const hudCanvas = document.getElementById('hud-canvas') as HTMLCanvasElement
+const hud = new HUD(hudCanvas)
+const debugOverlay = new DebugOverlay(hudCanvas)
+
 const fov = Math.PI / 3
 let lastTime = performance.now()
 let gameStarted = false
 let loading = false
 let currentSeed = DEFAULT_SEED
 let chatOpen = false
+let fpsAccum = 0
+let fpsFrames = 0
+let currentFps = 0
 
 let world!: World
 let player!: Player
@@ -207,6 +216,8 @@ function resize(): void {
   const dpr = window.devicePixelRatio || 1
   canvas.width = window.innerWidth * dpr
   canvas.height = window.innerHeight * dpr
+  hudCanvas.width = window.innerWidth * dpr
+  hudCanvas.height = window.innerHeight * dpr
   glCtx.viewport(0, 0, canvas.width, canvas.height)
 }
 
@@ -302,10 +313,14 @@ async function startGame(): Promise<void> {
   requestAnimationFrame(gameLoop)
 }
 
-canvas.addEventListener('click', () => {
+overlay.addEventListener('click', () => {
   if (!gameStarted && !loading) {
     startGame()
-  } else if (gameStarted) {
+  }
+})
+
+canvas.addEventListener('click', () => {
+  if (gameStarted) {
     if (chatOpen) {
       closeChat()
     } else {
@@ -355,10 +370,25 @@ function gameLoop(): void {
   renderer.renderChunks()
   renderer.endFrame()
 
+  fpsAccum += dt
+  fpsFrames++
+  if (fpsAccum >= 1) {
+    currentFps = fpsFrames / fpsAccum
+    fpsAccum = 0
+    fpsFrames = 0
+  }
+
+  hud.render(gameManager.inventory, gameManager.health, gameManager.hunger, gameManager.gameMode)
+
+  if (input.isKeyJustPressed('F3')) {
+    debugOverlay.visible = !debugOverlay.visible
+  }
+  debugOverlay.render(player, currentFps, world.chunks.size, player.position, gameManager.gameTime)
+
   input.update()
   requestAnimationFrame(gameLoop)
 }
 
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(() => {})
+  navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js').catch(() => {})
 }
